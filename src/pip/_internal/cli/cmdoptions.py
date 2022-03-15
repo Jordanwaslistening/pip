@@ -909,6 +909,14 @@ require_hashes: Callable[..., Option] = partial(
 )
 
 
+prohibit_root_access: Callable[..., Option] = partial(
+    PipOption,
+    "--prohibit-root-access",
+    dest="prohibit_root_access",
+    help="Error out if pip is run as the root user.",
+)
+
+
 list_path: Callable[..., Option] = partial(
     PipOption,
     "--path",

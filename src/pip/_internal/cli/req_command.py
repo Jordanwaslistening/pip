@@ -5,6 +5,7 @@ needing download / PackageFinder capability don't unnecessarily import the
 PackageFinder machinery and all its vendored dependencies, etc.
 """
 
+import functools
 import logging
 import os
 import sys
@@ -155,28 +156,36 @@ KEEPABLE_TEMPDIR_TYPES = [
 ]
 
 
-def warn_if_run_as_root() -> None:
-    """Output a warning for sudo users on Unix.
+@functools.lru_cache(maxsize=None)
+def should_warn_run_as_root() -> bool:
+    """Check whether the user should be informed about root access.
 
-    In a virtual environment, sudo pip still writes to virtualenv.
-    On Windows, users may run pip as Administrator without issues.
-    This warning only applies to Unix root users outside of virtualenv.
+    This only applies to Unix root users outside of a virtual environment. In a
+    virtual environment, sudo pip still writes to it. On Windows, users may run
+    pip as Administrator without issues.
     """
     if running_under_virtualenv():
-        return
+        return False
     if not hasattr(os, "getuid"):
-        return
+        return False
+
     # On Windows, there are no "system managed" Python packages. Installing as
     # Administrator via pip is the correct way of updating system environments.
     #
     # We choose sys.platform over utils.compat.WINDOWS here to enable Mypy platform
     # checks: https://mypy.readthedocs.io/en/stable/common_issues.html
     if sys.platform == "win32" or sys.platform == "cygwin":
-        return
+        return False
 
     if os.getuid() != 0:
-        return
+        return False
+    return True
 
+
+def warn_run_as_root() -> None:
+    """Output a warning for sudo users on Unix."""
+    if not should_warn_run_as_root():
+        return
     logger.warning(
         "Running pip as the 'root' user can result in broken permissions and "
         "conflicting behaviour with the system package manager. "

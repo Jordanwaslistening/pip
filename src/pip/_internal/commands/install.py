@@ -13,6 +13,7 @@ from pip._internal.cli import cmdoptions
 from pip._internal.cli.cmdoptions import make_target_python
 from pip._internal.cli.req_command import (
     RequirementCommand,
+    should_warn_run_as_root,
     warn_if_run_as_root,
     with_cleanup,
 )
@@ -100,6 +101,7 @@ class InstallCommand(RequirementCommand):
         )
         cmdoptions.add_target_python_options(self.cmd_opts)
 
+        self.cmd_opts.add_option(cmdoptions.prohibit_root_access())
         self.cmd_opts.add_option(
             "--user",
             dest="use_user_site",
@@ -241,6 +243,8 @@ class InstallCommand(RequirementCommand):
     def run(self, options: Values, args: List[str]) -> int:
         if options.use_user_site and options.target_dir is not None:
             raise CommandError("Can not combine '--user' and '--target'")
+        if options.no_root and should_warn_run_as_root():
+            raise CommandError("Can not run as root with '--no-root'")
 
         cmdoptions.check_install_build_global(options)
         upgrade_strategy = "to-satisfy-only"

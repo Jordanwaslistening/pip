@@ -4,10 +4,15 @@ from typing import List
 
 from pip._vendor.packaging.utils import canonicalize_name
 
+from pip._internal.cli import cmdoptions
 from pip._internal.cli.base_command import Command
-from pip._internal.cli.req_command import SessionCommandMixin, warn_if_run_as_root
+from pip._internal.cli.req_command import (
+    SessionCommandMixin,
+    should_warn_run_as_root,
+    warn_if_run_as_root,
+)
 from pip._internal.cli.status_codes import SUCCESS
-from pip._internal.exceptions import InstallationError
+from pip._internal.exceptions import CommandError, InstallationError
 from pip._internal.req import parse_requirements
 from pip._internal.req.constructors import (
     install_req_from_line,
@@ -53,10 +58,14 @@ class UninstallCommand(Command, SessionCommandMixin):
             action="store_true",
             help="Don't ask for confirmation of uninstall deletions.",
         )
+        self.cmd_opts.add_option(cmdoptions.prohibit_root_access())
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def run(self, options: Values, args: List[str]) -> int:
+        if options.prohibit_root_access and should_warn_run_as_root():
+            raise CommandError("Can not run as root with '--no-root'")
+
         session = self.get_default_session(options)
 
         reqs_to_uninstall = {}
